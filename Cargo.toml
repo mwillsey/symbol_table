@@ -1,0 +1,22 @@
+[package]
+name = "symbol_table"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+categories = ["data-structures"]
+keywords = ["interner", "intern", "symbol"]
+exclude = ["tests/*.txt", "bench/*"]
+description = "A symbol table that's fast, concurrent, and gives stable references."
+homepage = "https://github.com/mwillsey/string_interner"
+repository = "https://github.com/mwillsey/string_interner"
+
+[features]
+default = []
+global = []
+
+[dependencies]
+hashbrown = "0.12"
+serde = { version = "1", optional = true, features = ["derive"] }
+
+[package.metadata.docs.rs]
+all-features = true
