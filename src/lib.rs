@@ -13,6 +13,7 @@ With the `global` feature enabled, the
 
 #[cfg(feature = "global")]
 mod global;
+use ahash::AHasher;
 #[cfg(feature = "global")]
 pub use global::GlobalSymbol;
 
@@ -21,8 +22,19 @@ use std::{
     num::NonZeroU32,
 };
 
-use hashbrown::hash_map::{DefaultHashBuilder, HashMap, RawEntryMut};
+use hashbrown::hash_map::{HashMap, RawEntryMut};
 use std::sync::Mutex;
+
+/// A `BuildHasher` that builds a determinstically seeded AHasher
+#[derive(Default)]
+pub struct DeterministicHashBuilder;
+
+impl BuildHasher for DeterministicHashBuilder {
+    type Hasher = AHasher;
+    fn build_hasher(&self) -> Self::Hasher {
+        ahash::RandomState::with_seeds(0, 0, 0, 0).build_hasher()
+    }
+}
 
 /// The default number of sharded in the [`SymbolTable`].
 pub const DEFAULT_N_SHARDS: usize = 16;
@@ -31,7 +43,7 @@ pub const DEFAULT_N_SHARDS: usize = 16;
 ///
 /// The table is sharded `N` times (default [`DEFAULT_N_SHARDS`])
 /// for lower contention when accessing concurrently.
-pub struct SymbolTable<const N: usize = DEFAULT_N_SHARDS, S = DefaultHashBuilder> {
+pub struct SymbolTable<const N: usize = DEFAULT_N_SHARDS, S = DeterministicHashBuilder> {
     build_hasher: S,
     shards: [Mutex<Shard>; N],
 }
@@ -41,10 +53,28 @@ impl<const N: usize, S> SymbolTable<N, S> {
     const MAX_IDX: u32 = u32::MAX >> Self::SHARD_BITS;
 }
 
-impl SymbolTable<DEFAULT_N_SHARDS, DefaultHashBuilder> {
+impl SymbolTable<DEFAULT_N_SHARDS, DeterministicHashBuilder> {
     /// Creates a new [`SymbolTable`] with the default generic arguments.
+    /// This symbol table will be determinisitic, using a seeded ahash.
     pub fn new() -> Self {
         Self::default()
+    }
+}
+
+impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
+    #[allow(clippy::assertions_on_constants)]
+    fn with_hasher(build_hasher: S) -> Self {
+        assert!(0 < N);
+        assert!(N <= 1024);
+        // println!("N = {}", N);
+        // println!("SHARD_BITS = {}", Self::SHARD_BITS);
+        // println!("MAX_IDX = {}", Self::MAX_IDX);
+        let mut shards = Vec::with_capacity(N);
+        shards.resize_with(N, Default::default);
+        Self {
+            build_hasher,
+            shards: shards.try_into().unwrap_or_else(|_| panic!()),
+        }
     }
 }
 
@@ -80,20 +110,9 @@ impl Shard {
     }
 }
 
-impl<const N: usize, S: Default> Default for SymbolTable<N, S> {
-    #[allow(clippy::assertions_on_constants)]
+impl<const N: usize, S: Default + BuildHasher> Default for SymbolTable<N, S> {
     fn default() -> Self {
-        assert!(0 < N);
-        assert!(N <= 1024);
-        // println!("N = {}", N);
-        // println!("SHARD_BITS = {}", Self::SHARD_BITS);
-        // println!("MAX_IDX = {}", Self::MAX_IDX);
-        let mut shards = Vec::with_capacity(N);
-        shards.resize_with(N, Default::default);
-        Self {
-            build_hasher: Default::default(),
-            shards: shards.try_into().unwrap_or_else(|_| panic!()),
-        }
+        Self::with_hasher(S::default())
     }
 }
 
