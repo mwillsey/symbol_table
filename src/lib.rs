@@ -194,3 +194,15 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Symbol(NonZeroU32);
+
+impl From<NonZeroU32> for Symbol {
+    fn from(i: NonZeroU32) -> Self {
+        Symbol(i)
+    }
+}
+
+impl From<Symbol> for NonZeroU32 {
+    fn from(sym: Symbol) -> Self {
+        sym.0
+    }
+}

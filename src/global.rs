@@ -21,6 +21,18 @@ use std::sync::Once;
 #[cfg_attr(feature = "serde", serde(from = "&str", into = "&'static str"))]
 pub struct GlobalSymbol(Symbol);
 
+impl From<NonZeroU32> for GlobalSymbol {
+    fn from(n: NonZeroU32) -> Self {
+        Self(Symbol::from(n))
+    }
+}
+
+impl From<GlobalSymbol> for NonZeroU32 {
+    fn from(n: GlobalSymbol) -> Self {
+        n.0.into()
+    }
+}
+
 fn singleton() -> &'static SymbolTable {
     static mut SINGLETON: MaybeUninit<SymbolTable> = MaybeUninit::uninit();
     static ONCE: Once = Once::new();
