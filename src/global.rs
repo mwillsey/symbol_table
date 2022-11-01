@@ -17,8 +17,8 @@ use std::sync::Once;
 ///   convert [`From`] and [`Into`] a `&str`,
 ///   and de/serialize using [`serde`](https://serde.rs) if the `serde` feature is enabled.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(from = "&str", into = "&'static str"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(into = "&'static str"))]
 pub struct GlobalSymbol(Symbol);
 
 impl From<NonZeroU32> for GlobalSymbol {
@@ -101,5 +101,38 @@ impl std::fmt::Debug for GlobalSymbol {
 impl std::fmt::Display for GlobalSymbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self.as_str(), f)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct StrVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> serde::de::Visitor<'de> for StrVisitor {
+    type Value = GlobalSymbol;
+
+    fn expecting(
+        &self,
+        formatter: &mut std::fmt::Formatter,
+    ) -> std::fmt::Result {
+        formatter.write_str("a &str")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(v.into())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for GlobalSymbol {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let x = deserializer.deserialize_str(StrVisitor)?;
+        Ok(x)
     }
 }
