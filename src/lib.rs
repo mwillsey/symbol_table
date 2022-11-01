@@ -43,10 +43,7 @@ pub const DEFAULT_N_SHARDS: usize = 16;
 ///
 /// The table is sharded `N` times (default [`DEFAULT_N_SHARDS`])
 /// for lower contention when accessing concurrently.
-pub struct SymbolTable<
-    const N: usize = DEFAULT_N_SHARDS,
-    S = DeterministicHashBuilder,
-> {
+pub struct SymbolTable<const N: usize = DEFAULT_N_SHARDS, S = DeterministicHashBuilder> {
     build_hasher: S,
     shards: [Mutex<Shard>; N],
 }
@@ -88,12 +85,7 @@ struct Shard {
 }
 
 impl Shard {
-    fn intern(
-        &mut self,
-        hash: u64,
-        string: &str,
-        build_hasher: &impl BuildHasher,
-    ) -> u32 {
+    fn intern(&mut self, hash: u64, string: &str, build_hasher: &impl BuildHasher) -> u32 {
         let entry = self
             .map
             .raw_entry_mut()

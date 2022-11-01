@@ -111,10 +111,7 @@ struct StrVisitor;
 impl<'de> serde::de::Visitor<'de> for StrVisitor {
     type Value = GlobalSymbol;
 
-    fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a &str")
     }
 
