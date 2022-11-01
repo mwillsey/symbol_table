@@ -56,7 +56,7 @@ fn test_specific_strings() {
 #[cfg(feature = "global")]
 #[cfg(feature = "serde")]
 #[test]
-fn test_serde() {
+fn test_serde_serialization_deserialization() {
     let sym = GlobalSymbol::from("foo");
 
     fn ser(_: impl serde::Serialize) {}
@@ -64,4 +64,36 @@ fn test_serde() {
 
     ser(sym);
     de(sym);
+}
+
+#[cfg(feature = "global")]
+#[cfg(feature = "serde")]
+#[test]
+fn test_serde_file() {
+    let test = GlobalSymbol::from("foo");
+
+    let mut file: std::fs::File = tempfile::tempfile().expect("Failed to create tempfile");
+
+    // serialize symbol to file
+    serde_json::to_writer(&mut file, &test).expect("Failed to serialize");
+
+    // seek back to the beginning of the file
+    std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(0)).expect("Failed to seek");
+
+    // deserialize the symbol back out from the file
+    let deserialized = serde_json::from_reader(file).expect("Failed to deserialize");
+
+    assert_eq!(test, deserialized);
+}
+
+#[cfg(feature = "global")]
+#[cfg(feature = "serde")]
+#[test]
+fn test_serde_string() {
+    let test: GlobalSymbol = GlobalSymbol::from("foo");
+
+    let ser = serde_json::to_string(&test).expect("Failed to serialize");
+    let de = serde_json::from_str(&ser).expect("Failed to deserialize");
+
+    assert_eq!(test, de);
 }
