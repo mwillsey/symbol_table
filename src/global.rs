@@ -11,7 +11,7 @@ use std::sync::Once;
 /// [`GlobalSymbol`] is a wrapper around [`Symbol`] that knows to refer to a
 /// built-in, global [`SymbolTable`]. Strings into the global table are never freed.
 ///
-/// This enables a lot of convience methods and trait implementations over
+/// This enables a lot of convenience methods and trait implementations over
 /// [`GlobalSymbol`] (see below). In particular,
 ///   you can convert it to `&'static str`,
 ///   convert [`From`] and [`Into`] a `&str`,
