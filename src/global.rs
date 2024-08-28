@@ -24,10 +24,10 @@ use std::sync::Once;
 #[macro_export]
 macro_rules! static_symbol {
     ($s:literal) => {{
-        use std::cell::OnceCell;
-        static SYMBOL: OnceCell<GlobalSymbol> = OnceCell::new();
+        use std::sync::OnceLock;
+        static SYMBOL: OnceLock<GlobalSymbol> = OnceLock::new();
 
-        SYMBOL.get_or_init(|| GlobalSymbol::from($s))
+        *SYMBOL.get_or_init(|| GlobalSymbol::from($s))
     }};
 }
 
