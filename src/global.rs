@@ -4,6 +4,33 @@ use std::mem::MaybeUninit;
 use std::str::FromStr;
 use std::sync::Once;
 
+#[cfg(feature = "global")]
+/// Macro for creating symbols from &'static str. Useful for commonly used symbols known at compile time.
+/// This is faster then GlobalSymbol::from(s) by avoiding mutex contention.
+///
+/// # Examples
+///
+/// ```
+/// use symbol_table::static_symbol;
+/// use symbol_table::GlobalSymbol;
+///
+/// let hello = static_symbol!("hello");
+/// assert_eq!(hello, GlobalSymbol::from("hello"));
+///
+/// // The same symbol is returned on subsequent calls
+/// let hello2 = static_symbol!("hello");
+/// assert_eq!(hello, hello2);
+/// ```
+#[macro_export]
+macro_rules! static_symbol {
+    ($s:literal) => {{
+        use std::cell::OnceCell;
+        static SYMBOL: OnceCell<GlobalSymbol> = OnceCell::new();
+
+        SYMBOL.get_or_init(|| GlobalSymbol::from($s))
+    }};
+}
+
 /// A interned string in the global symbol table.
 ///
 /// This requires the `global` feature on the crate.

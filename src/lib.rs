@@ -22,7 +22,7 @@ use std::{
     num::NonZeroU32,
 };
 
-use crossbeam::utils::CachePadded;
+use crossbeam_utils::CachePadded;
 use hashbrown::hash_map::{HashMap, RawEntryMut};
 use std::sync::Mutex;
 
