@@ -22,6 +22,7 @@ use std::{
     num::NonZeroU32,
 };
 
+use crossbeam_utils::CachePadded;
 use hashbrown::hash_map::{HashMap, RawEntryMut};
 use std::sync::Mutex;
 
@@ -45,7 +46,7 @@ pub const DEFAULT_N_SHARDS: usize = 16;
 /// for lower contention when accessing concurrently.
 pub struct SymbolTable<const N: usize = DEFAULT_N_SHARDS, S = DeterministicHashBuilder> {
     build_hasher: S,
-    shards: [Mutex<Shard>; N],
+    shards: [CachePadded<Mutex<Shard>>; N],
 }
 
 impl<const N: usize, S> SymbolTable<N, S> {
@@ -70,7 +71,7 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
         // println!("SHARD_BITS = {}", Self::SHARD_BITS);
         // println!("MAX_IDX = {}", Self::MAX_IDX);
         let mut shards = Vec::with_capacity(N);
-        shards.resize_with(N, Default::default);
+        shards.resize_with(N, || CachePadded::new(Mutex::new(Shard::default())));
         Self {
             build_hasher,
             shards: shards.try_into().unwrap_or_else(|_| panic!()),
