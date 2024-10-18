@@ -13,7 +13,6 @@ With the `global` feature enabled, the
 
 #[cfg(feature = "global")]
 mod global;
-use ahash::AHasher;
 #[cfg(feature = "global")]
 pub use global::GlobalSymbol;
 
@@ -31,9 +30,9 @@ use std::sync::Mutex;
 pub struct DeterministicHashBuilder;
 
 impl BuildHasher for DeterministicHashBuilder {
-    type Hasher = AHasher;
+    type Hasher = foldhash::fast::FoldHasher;
     fn build_hasher(&self) -> Self::Hasher {
-        ahash::RandomState::with_seeds(0, 0, 0, 0).build_hasher()
+        foldhash::fast::FixedState::with_seed(0).build_hasher()
     }
 }
 
