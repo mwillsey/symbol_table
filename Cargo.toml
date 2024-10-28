@@ -8,7 +8,7 @@ keywords = ["interner", "intern", "symbol"]
 license = "MIT"
 name = "symbol_table"
 repository = "https://github.com/mwillsey/string_interner"
-version = "0.3.0"
+version = "0.4.0"
 
 [features]
 default = []
