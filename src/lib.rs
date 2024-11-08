@@ -55,15 +55,25 @@ impl<const N: usize, S> SymbolTable<N, S> {
 
 impl SymbolTable<DEFAULT_N_SHARDS, DeterministicHashBuilder> {
     /// Creates a new [`SymbolTable`] with the default generic arguments.
-    /// This symbol table will be determinisitic, using a seeded ahash.
-    pub fn new() -> Self {
-        Self::default()
+    ///
+    /// This symbol table will be determinisitic, using a seeded hasher.
+    ///
+    /// To create a [`SymbolTable`] with a custom shard count or hasher, use
+    /// [`with_hasher`](Self::with_hasher).
+    pub const fn new() -> Self {
+        Self::with_hasher(DeterministicHashBuilder)
     }
 }
 
 impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
+    /// Creates a new [`SymbolTable`] with a custom hasher.
     #[allow(clippy::assertions_on_constants)]
-    fn with_hasher(build_hasher: S) -> Self {
+    pub const fn with_hasher(build_hasher: S) -> Self {
+        // Only used for array initialization.
+        // Replace with an inline-const block when it's been stable for long enough.
+        #[allow(clippy::declare_interior_mutable_const)]
+        const SHARD_INIT: CachePadded<Mutex<Shard>> = CachePadded::new(Mutex::new(Shard::new()));
+
         assert!(0 < N);
         assert!(N <= 1024);
         // println!("N = {}", N);
@@ -71,7 +81,7 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
         // println!("MAX_IDX = {}", Self::MAX_IDX);
         Self {
             build_hasher,
-            shards: std::array::from_fn(|_| Default::default()),
+            shards: [SHARD_INIT; N],
         }
     }
 }
@@ -83,6 +93,13 @@ struct Shard {
 }
 
 impl Shard {
+    const fn new() -> Self {
+        Self {
+            map: HashMap::with_hasher(()),
+            strs: Vec::new(),
+        }
+    }
+
     fn intern(&mut self, hash: u64, string: &str, build_hasher: &impl BuildHasher) -> u32 {
         let entry = self
             .map
