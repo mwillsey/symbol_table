@@ -1,8 +1,6 @@
 use crate::*;
 
-use std::mem::MaybeUninit;
 use std::str::FromStr;
-use std::sync::Once;
 
 #[cfg(feature = "global")]
 /// Macro for creating symbols from &'static str. Useful for commonly used symbols known at compile time.
@@ -60,20 +58,7 @@ impl From<GlobalSymbol> for NonZeroU32 {
     }
 }
 
-fn singleton() -> &'static SymbolTable {
-    static mut SINGLETON: MaybeUninit<SymbolTable> = MaybeUninit::uninit();
-    static ONCE: Once = Once::new();
-
-    // SAFETY:
-    // - writing to the singleton is OK because we only do it one time
-    // - the ONCE guarantees that SINGLETON is init'ed before assume_init_ref
-    unsafe {
-        ONCE.call_once(|| {
-            SINGLETON.write(SymbolTable::new());
-        });
-        SINGLETON.assume_init_ref()
-    }
-}
+static SINGLETON: SymbolTable = SymbolTable::new();
 
 impl GlobalSymbol {
     /// Intern a string into the global symbol table.
@@ -89,19 +74,19 @@ impl GlobalSymbol {
 
 impl From<&str> for GlobalSymbol {
     fn from(s: &str) -> Self {
-        GlobalSymbol(singleton().intern(s))
+        GlobalSymbol(SINGLETON.intern(s))
     }
 }
 
 impl From<String> for GlobalSymbol {
     fn from(s: String) -> Self {
-        GlobalSymbol(singleton().intern(&s))
+        s.as_str().into()
     }
 }
 
 impl From<&String> for GlobalSymbol {
     fn from(s: &String) -> Self {
-        GlobalSymbol(singleton().intern(s))
+        s.as_str().into()
     }
 }
 
@@ -115,7 +100,7 @@ impl FromStr for GlobalSymbol {
 
 impl From<GlobalSymbol> for &'static str {
     fn from(sym: GlobalSymbol) -> Self {
-        singleton().resolve(sym.0)
+        SINGLETON.resolve(sym.0)
     }
 }
 
@@ -135,7 +120,7 @@ impl std::fmt::Display for GlobalSymbol {
 struct StrVisitor;
 
 #[cfg(feature = "serde")]
-impl<'de> serde::de::Visitor<'de> for StrVisitor {
+impl serde::de::Visitor<'_> for StrVisitor {
     type Value = GlobalSymbol;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -156,7 +141,6 @@ impl<'de> serde::Deserialize<'de> for GlobalSymbol {
     where
         D: serde::Deserializer<'de>,
     {
-        let x = deserializer.deserialize_str(StrVisitor)?;
-        Ok(x)
+        deserializer.deserialize_str(StrVisitor)
     }
 }
