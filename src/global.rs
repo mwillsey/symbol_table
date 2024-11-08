@@ -1,8 +1,7 @@
 use crate::*;
 
-use std::mem::MaybeUninit;
 use std::str::FromStr;
-use std::sync::Once;
+use std::sync::OnceLock;
 
 #[cfg(feature = "global")]
 /// Macro for creating symbols from &'static str. Useful for commonly used symbols known at compile time.
@@ -60,19 +59,10 @@ impl From<GlobalSymbol> for NonZeroU32 {
     }
 }
 
+#[inline]
 fn singleton() -> &'static SymbolTable {
-    static mut SINGLETON: MaybeUninit<SymbolTable> = MaybeUninit::uninit();
-    static ONCE: Once = Once::new();
-
-    // SAFETY:
-    // - writing to the singleton is OK because we only do it one time
-    // - the ONCE guarantees that SINGLETON is init'ed before assume_init_ref
-    unsafe {
-        ONCE.call_once(|| {
-            SINGLETON.write(SymbolTable::new());
-        });
-        SINGLETON.assume_init_ref()
-    }
+    static SINGLETON: OnceLock<SymbolTable> = OnceLock::new();
+    SINGLETON.get_or_init(SymbolTable::new)
 }
 
 impl GlobalSymbol {
@@ -95,13 +85,13 @@ impl From<&str> for GlobalSymbol {
 
 impl From<String> for GlobalSymbol {
     fn from(s: String) -> Self {
-        GlobalSymbol(singleton().intern(&s))
+        s.as_str().into()
     }
 }
 
 impl From<&String> for GlobalSymbol {
     fn from(s: &String) -> Self {
-        GlobalSymbol(singleton().intern(s))
+        s.as_str().into()
     }
 }
 
@@ -156,7 +146,6 @@ impl<'de> serde::Deserialize<'de> for GlobalSymbol {
     where
         D: serde::Deserializer<'de>,
     {
-        let x = deserializer.deserialize_str(StrVisitor)?;
-        Ok(x)
+        deserializer.deserialize_str(StrVisitor)
     }
 }
