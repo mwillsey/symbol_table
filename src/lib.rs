@@ -25,7 +25,7 @@ use crossbeam_utils::CachePadded;
 use hashbrown::hash_map::{HashMap, RawEntryMut};
 use std::sync::Mutex;
 
-/// A `BuildHasher` that builds a determinstically seeded AHasher
+/// A `BuildHasher` that builds a determinstically seeded hasher.
 #[derive(Default)]
 pub struct DeterministicHashBuilder;
 
@@ -69,11 +69,9 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
         // println!("N = {}", N);
         // println!("SHARD_BITS = {}", Self::SHARD_BITS);
         // println!("MAX_IDX = {}", Self::MAX_IDX);
-        let mut shards = Vec::with_capacity(N);
-        shards.resize_with(N, || CachePadded::new(Mutex::new(Shard::default())));
         Self {
             build_hasher,
-            shards: shards.try_into().unwrap_or_else(|_| panic!()),
+            shards: std::array::from_fn(|_| Default::default()),
         }
     }
 }
