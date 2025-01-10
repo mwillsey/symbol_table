@@ -1,7 +1,6 @@
 use crate::*;
 
 use std::str::FromStr;
-use std::sync::OnceLock;
 
 #[cfg(feature = "global")]
 /// Macro for creating symbols from &'static str. Useful for commonly used symbols known at compile time.
@@ -59,11 +58,7 @@ impl From<GlobalSymbol> for NonZeroU32 {
     }
 }
 
-#[inline]
-fn singleton() -> &'static SymbolTable {
-    static SINGLETON: OnceLock<SymbolTable> = OnceLock::new();
-    SINGLETON.get_or_init(SymbolTable::new)
-}
+static SINGLETON: SymbolTable = SymbolTable::new();
 
 impl GlobalSymbol {
     /// Intern a string into the global symbol table.
@@ -79,7 +74,7 @@ impl GlobalSymbol {
 
 impl From<&str> for GlobalSymbol {
     fn from(s: &str) -> Self {
-        GlobalSymbol(singleton().intern(s))
+        GlobalSymbol(SINGLETON.intern(s))
     }
 }
 
@@ -105,7 +100,7 @@ impl FromStr for GlobalSymbol {
 
 impl From<GlobalSymbol> for &'static str {
     fn from(sym: GlobalSymbol) -> Self {
-        singleton().resolve(sym.0)
+        SINGLETON.resolve(sym.0)
     }
 }
 
@@ -125,7 +120,7 @@ impl std::fmt::Display for GlobalSymbol {
 struct StrVisitor;
 
 #[cfg(feature = "serde")]
-impl<'de> serde::de::Visitor<'de> for StrVisitor {
+impl serde::de::Visitor<'_> for StrVisitor {
     type Value = GlobalSymbol;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
