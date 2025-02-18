@@ -23,9 +23,9 @@ use std::str::FromStr;
 macro_rules! static_symbol {
     ($s:literal) => {{
         use std::sync::OnceLock;
-        static SYMBOL: OnceLock<GlobalSymbol> = OnceLock::new();
+        static SYMBOL: OnceLock<$crate::GlobalSymbol> = OnceLock::new();
 
-        *SYMBOL.get_or_init(|| GlobalSymbol::from($s))
+        *SYMBOL.get_or_init(|| $crate::GlobalSymbol::from($s))
     }};
 }
 

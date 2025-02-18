@@ -90,7 +90,7 @@ fn test_serde_file() {
 #[cfg(feature = "serde")]
 #[test]
 fn test_serde_string() {
-    let test: GlobalSymbol = GlobalSymbol::from("foo");
+    let test = symbol_table::static_symbol!("foo");
 
     let ser = serde_json::to_string(&test).expect("Failed to serialize");
     let de = serde_json::from_str(&ser).expect("Failed to deserialize");
