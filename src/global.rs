@@ -66,6 +66,11 @@ impl GlobalSymbol {
         s.as_ref().into()
     }
 
+    /// Get the symbol for a string in the global symbol table, only if it already exists.
+    pub fn get_existing(s: impl AsRef<str>) -> Option<Self> {
+        SINGLETON.get_existing(s.as_ref()).map(GlobalSymbol)
+    }
+
     /// Convert this symbol into the string in the static, global symbol table.
     pub fn as_str(&self) -> &'static str {
         (*self).into()

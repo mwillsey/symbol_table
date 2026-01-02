@@ -123,6 +123,15 @@ impl Shard {
         debug_assert!(!self.map.is_empty());
         index
     }
+
+    fn get_existing(&self, hash: u64, string: &str) -> Option<u32> {
+        let entry = self
+            .map
+            .raw_entry()
+            .from_hash(hash, |&idx| string == self.strs[idx as usize].as_ref());
+
+        entry.map(|(e, _)| *e)
+    }
 }
 
 impl<const N: usize, S: Default + BuildHasher> Default for SymbolTable<N, S> {
@@ -162,6 +171,33 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
         let shard_bits: u32 = (shard_i as u32) << (32 - Self::SHARD_BITS);
         // println!("shard_bits = {shard_bits:x}");
         Symbol(NonZeroU32::new(shard_bits | i).unwrap())
+    }
+
+    /// Get the [`Symbol`] for a string in the [`SymbolTable`], only if it already exists.
+    ///
+    /// Note how this method only takes `&self`, so it can be used concurrently.
+    ///
+    /// Interning the same string will give the same symbol.
+    ///
+    /// ```
+    /// let mut table = symbol_table::SymbolTable::new();
+    /// assert!(table.get_existing("foo").is_none());
+    /// table.intern("foo");
+    /// assert!(table.get_existing("foo").is_some());
+    /// ```
+    pub fn get_existing(&self, string: &str) -> Option<Symbol> {
+        let hash = hash_one(&self.build_hasher, string);
+        let shard_i = hash as usize % N;
+        // println!("Interning into shard {shard_i}");
+
+        let locked = self.shards[shard_i].lock().unwrap();
+        let i = locked.get_existing(hash, string)? + 1;
+        drop(locked);
+
+        assert!(i < Self::MAX_IDX, "Can't represent index {} in a Symbol", i);
+        let shard_bits: u32 = (shard_i as u32) << (32 - Self::SHARD_BITS);
+        // println!("shard_bits = {shard_bits:x}");
+        Some(Symbol(NonZeroU32::new(shard_bits | i).unwrap()))
     }
 
     /// Resolve a symbol to the interned string.
