@@ -11,14 +11,16 @@ repository = "https://github.com/mwillsey/string_interner"
 version = "0.5.0"
 
 [features]
-default = []
+default = ["std"]
+std = []
 global = []
 
 [dependencies]
-hashbrown = "0.15"
+hashbrown = { version = "0.15", default-features = false, features = ["default-hasher", "inline-more", "raw-entry"] }
 serde = { version = "1", optional = true, features = ["derive"] }
-crossbeam-utils = "0.8.4"
-foldhash = "0.1.3"
+crossbeam-utils = { version = "0.8.4", default-features = false }
+foldhash = { version = "0.1.3", default-features = false }
+spin = { version = "0.10", default-features = false, features = ["mutex", "once", "spin_mutex"] }
 
 [dev-dependencies]
 serde_json = "1.0"

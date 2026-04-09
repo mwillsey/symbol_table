@@ -1,6 +1,7 @@
 use crate::*;
 
-use std::str::FromStr;
+use alloc::string::String;
+use core::{convert::Infallible, fmt, num::NonZeroU32, str::FromStr};
 
 #[cfg(feature = "global")]
 /// Macro for creating symbols from &'static str. Useful for commonly used symbols known at compile time.
@@ -22,10 +23,21 @@ use std::str::FromStr;
 #[macro_export]
 macro_rules! static_symbol {
     ($s:literal) => {{
-        use std::sync::OnceLock;
-        static SYMBOL: OnceLock<$crate::GlobalSymbol> = OnceLock::new();
+        #[cfg(feature = "std")]
+        {
+            use std::sync::OnceLock;
+            static SYMBOL: OnceLock<$crate::GlobalSymbol> = OnceLock::new();
 
-        *SYMBOL.get_or_init(|| $crate::GlobalSymbol::from($s))
+            *SYMBOL.get_or_init(|| $crate::GlobalSymbol::from($s))
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            use spin::Once;
+            static SYMBOL: Once<$crate::GlobalSymbol> = Once::new();
+
+            *SYMBOL.call_once(|| $crate::GlobalSymbol::from($s))
+        }
     }};
 }
 
@@ -96,7 +108,7 @@ impl From<&String> for GlobalSymbol {
 }
 
 impl FromStr for GlobalSymbol {
-    type Err = std::convert::Infallible;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(s.into())
@@ -109,15 +121,15 @@ impl From<GlobalSymbol> for &'static str {
     }
 }
 
-impl std::fmt::Debug for GlobalSymbol {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self.as_str(), f)
+impl fmt::Debug for GlobalSymbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), f)
     }
 }
 
-impl std::fmt::Display for GlobalSymbol {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(self.as_str(), f)
+impl fmt::Display for GlobalSymbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.as_str(), f)
     }
 }
 
@@ -128,7 +140,7 @@ struct StrVisitor;
 impl serde::de::Visitor<'_> for StrVisitor {
     type Value = GlobalSymbol;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("a &str")
     }
 

@@ -1,9 +1,12 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 /*!
 
 This crate provides an easy-to-use [`SymbolTable`]
  that's fast, suitable for concurrent access,
  and provides stable `&str` references for resolved symbols.
+
+The library supports `no_std` builds and uses the standard library by default.
 
 With the `global` feature enabled, the
  provided [`GlobalSymbol`] type
@@ -16,14 +19,32 @@ mod global;
 #[cfg(feature = "global")]
 pub use global::GlobalSymbol;
 
-use std::{
+extern crate alloc;
+
+use alloc::{boxed::Box, vec::Vec};
+use core::{
     hash::{BuildHasher, Hash},
     num::NonZeroU32,
 };
 
 use crossbeam_utils::CachePadded;
 use hashbrown::hash_map::{HashMap, RawEntryMut};
-use std::sync::Mutex;
+#[cfg(not(feature = "std"))]
+use spin::{Mutex, MutexGuard};
+#[cfg(feature = "std")]
+use std::sync::{Mutex, MutexGuard};
+
+#[inline(always)]
+fn lock_mutex<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    #[cfg(feature = "std")]
+    {
+        mutex.lock().unwrap()
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        mutex.lock()
+    }
+}
 
 /// A `BuildHasher` that builds a determinstically seeded hasher.
 #[derive(Default)]
@@ -144,7 +165,7 @@ impl<const N: usize, S: Default + BuildHasher> Default for SymbolTable<N, S> {
 fn hash_one(build_hasher: &impl BuildHasher, string: &str) -> u64 {
     let mut hasher = build_hasher.build_hasher();
     string.hash(&mut hasher);
-    std::hash::Hasher::finish(&hasher)
+    core::hash::Hasher::finish(&hasher)
 }
 
 impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
@@ -163,7 +184,7 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
         let shard_i = hash as usize % N;
         // println!("Interning into shard {shard_i}");
 
-        let mut locked = self.shards[shard_i].lock().unwrap();
+        let mut locked = lock_mutex(&self.shards[shard_i]);
         let i = locked.intern(hash, string, &self.build_hasher) + 1;
         drop(locked);
 
@@ -190,7 +211,7 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
         let shard_i = hash as usize % N;
         // println!("Interning into shard {shard_i}");
 
-        let locked = self.shards[shard_i].lock().unwrap();
+        let locked = lock_mutex(&self.shards[shard_i]);
         let i = locked.get_existing(hash, string)? + 1;
         drop(locked);
 
@@ -217,7 +238,7 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
         let i = sym.0.get() & (u32::MAX >> Self::SHARD_BITS);
         debug_assert!(i > 0);
         let i = i - 1; // undo the + 1 from interning
-        let shard = self.shards[shard_i as usize].lock().unwrap();
+        let shard = lock_mutex(&self.shards[shard_i as usize]);
         debug_assert!(
             !shard.strs.is_empty(),
             "Shard shouldn't be empty when resolving!"
@@ -240,7 +261,7 @@ impl<const N: usize, S: BuildHasher> SymbolTable<N, S> {
 /// Internally, this is a [`NonZeroU32`], so it will be niche-optimized.
 ///
 /// ```
-/// # use std::mem::size_of; use symbol_table::Symbol;
+/// # use core::mem::size_of; use symbol_table::Symbol;
 /// assert_eq!(size_of::<Symbol>(), size_of::<u32>());
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
